@@ -11,6 +11,7 @@ import javax.swing.*;
 import java.awt.event.*;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.event.*;
+import java.util.concurrent.*;
 
 /**
  *
@@ -84,6 +85,19 @@ public class InventoryFrame extends javax.swing.JFrame {
 			
 		}
 	}
+	
+	public static KeyListener keyListener = new KeyListener() {
+		public void keyTyped(KeyEvent e) {
+			System.out.println(e.getKeyCode());
+		}
+		public void keyPressed(KeyEvent e) {
+			
+		}
+		public void keyReleased(KeyEvent e) {
+			
+		}
+	};
+		
 
 	public int[] firstSearch(int[] selectedRows, int columnIndex, String fieldText, boolean description) {
 		inventoryTable.clearSelection();
@@ -135,9 +149,7 @@ public class InventoryFrame extends javax.swing.JFrame {
 		firstScan = true;
 		searchCount = 0;
 		selectedRows = null;
-	}
-	
-	
+	}	
 	
 	public DocumentListener documentListener = new DocumentListener() {
 		public void changedUpdate(DocumentEvent e) {
@@ -167,8 +179,12 @@ public class InventoryFrame extends javax.swing.JFrame {
 				System.out.println(splitLine[0]);
 				System.out.println(code);
 				if (code.equals(splitLine[0])) {
-					reader.close();
+					nameField.setText(splitLine[1]);
+					makeField.setText(splitLine[2]);
+					modelField.setText(splitLine[3]);
+					
 					startSearch();
+					break;
 				}
 				line = reader.readLine();
 			}
@@ -217,6 +233,16 @@ public class InventoryFrame extends javax.swing.JFrame {
 		searchCount++;
 		if (searchCount > selectedRows.length - 1) {
 			searchCount = 0;
+		}
+	}
+	
+	public void checkForBarcode() {
+		try {
+			if (nameField.getText(nameField.getDocument().getLength() - 1, 1).equals("*")) {
+				scan(nameField.getText());
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 	
@@ -344,6 +370,12 @@ public class InventoryFrame extends javax.swing.JFrame {
 		loadData();
 
 		pack();
+		final ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+		executorService.scheduleAtFixedRate(new Runnable() {
+			public void run() {
+				checkForBarcode();
+			}
+		}, 500, 500, TimeUnit.MILLISECONDS);
 	}// </editor-fold>
 
 	private void addButtonActionPerformed(java.awt.event.ActionEvent evt) {
@@ -448,6 +480,7 @@ public class InventoryFrame extends javax.swing.JFrame {
 				InventoryFrame inventoryFrame = new InventoryFrame();
 				inventoryFrame.setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
 				inventoryFrame.addWindowListener(windowAdapter);
+				inventoryFrame.addKeyListener(keyListener);
 				inventoryFrame.setVisible(true);
 			}
 		});
@@ -457,7 +490,7 @@ public class InventoryFrame extends javax.swing.JFrame {
 	public javax.swing.JButton addButton;
 	public javax.swing.JButton deleteButton;
 	public javax.swing.JButton findButton;
-	public javax.swing.JTextField descriptionField;
+	public static javax.swing.JTextField descriptionField;
 	public static javax.swing.JTable inventoryTable;
 	private javax.swing.JLabel jLabel1;
 	private javax.swing.JLabel jLabel2;
@@ -465,10 +498,10 @@ public class InventoryFrame extends javax.swing.JFrame {
 	private javax.swing.JLabel jLabel4;
 	private javax.swing.JLabel jLabel5;
 	private javax.swing.JScrollPane jScrollPane1;
-	public javax.swing.JTextField makeField;
-	public javax.swing.JTextField modelField;
-	public javax.swing.JTextField nameField;
-	public javax.swing.JTextField quantityField;
+	public static javax.swing.JTextField makeField;
+	public static javax.swing.JTextField modelField;
+	public static javax.swing.JTextField nameField;
+	public static javax.swing.JTextField quantityField;
 	boolean firstScan = true;
 	int[] selectedRows = null;
 	int searchCount = 0;
