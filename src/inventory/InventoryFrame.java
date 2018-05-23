@@ -85,25 +85,13 @@ public class InventoryFrame extends javax.swing.JFrame {
 			
 		}
 	}
-	
-	public static KeyListener keyListener = new KeyListener() {
-		public void keyTyped(KeyEvent e) {
-			System.out.println(e.getKeyCode());
-		}
-		public void keyPressed(KeyEvent e) {
-			
-		}
-		public void keyReleased(KeyEvent e) {
-			
-		}
-	};
 		
 
 	public int[] firstSearch(int[] selectedRows, int columnIndex, String fieldText, boolean description) {
 		inventoryTable.clearSelection();
 		inventoryTable.getSelectionModel().removeSelectionInterval(0, inventoryTable.getRowCount() - 1);
 		for (int i = 0; i <= inventoryTable.getRowCount() - 1; i++) {
-			if (description == false) {
+			if (columnIndex != 4) {
 				if (model.getValueAt(i, columnIndex).toString().equalsIgnoreCase(fieldText)) {
 					inventoryTable.getSelectionModel().addSelectionInterval(i, i);
 				}
@@ -114,20 +102,35 @@ public class InventoryFrame extends javax.swing.JFrame {
 			}
     	}
 		selectedRows = inventoryTable.getSelectedRows();
+		if (selectedRows.length == 0) {
+			exactSearch = false;
+		}
 		return selectedRows;
 	}
 	
 	public int[] filterTable(int[] selectedRows, int columnIndex, String fieldText, boolean description) {
-		inventoryTable.clearSelection();
-		inventoryTable.getSelectionModel().removeSelectionInterval(0, inventoryTable.getRowCount() - 1);
+		if (columnIndex != 3) {
+			inventoryTable.clearSelection();
+			inventoryTable.getSelectionModel().removeSelectionInterval(0, inventoryTable.getRowCount() - 1);
+		}
 		for (int i = 0; i <= selectedRows.length - 1; i++) {
-			if (description == false) {
+			if (columnIndex != 4) {
 				if (model.getValueAt(selectedRows[i], columnIndex).toString().equalsIgnoreCase(fieldText)) {
 					inventoryTable.getSelectionModel().addSelectionInterval(selectedRows[i], selectedRows[i]);
+				} else {
+					if (exactSearch == true && columnIndex == 3) {
+						quantityMismatch = true;
+					}
+					exactSearch = false;
 				}
 			} else {
 				if (model.getValueAt(selectedRows[i], columnIndex).toString().contains(fieldText)) {
 					inventoryTable.getSelectionModel().addSelectionInterval(selectedRows[i], selectedRows[i]);
+				} else {
+					if (exactSearch == true && columnIndex == 3) {
+						quantityMismatch = true;
+					}
+					exactSearch = false;
 				}
 			}
 		}
@@ -169,6 +172,7 @@ public class InventoryFrame extends javax.swing.JFrame {
 	public void scan(String code) {
 		System.out.println(code);
 		cleanFields();
+		boolean valueFound = false;
 		
 		try {
 			BufferedReader reader = new BufferedReader(new FileReader("\\\\10.48.1.133\\inventory\\codes.csv"));
@@ -179,11 +183,13 @@ public class InventoryFrame extends javax.swing.JFrame {
 				System.out.println(splitLine[0]);
 				System.out.println(code);
 				if (code.equals(splitLine[0])) {
+					valueFound = true;
 					nameField.setText(splitLine[1]);
 					makeField.setText(splitLine[2]);
 					modelField.setText(splitLine[3]);
 					
 					startSearch();
+					quantityField.setText("1");
 					break;
 				}
 				line = reader.readLine();
@@ -191,6 +197,9 @@ public class InventoryFrame extends javax.swing.JFrame {
 			reader.close();
 		} catch (Exception e) {
 			e.printStackTrace();
+		}
+		if (valueFound == false) {
+			cleanFields();
 		}
 	}
 	
@@ -203,6 +212,7 @@ public class InventoryFrame extends javax.swing.JFrame {
 	}
 	
 	public void startSearch() {
+		exactSearch = true;
 		if (firstScan == true) {
 			inventoryTable.clearSelection();
 			selectedRows = null;
@@ -228,11 +238,14 @@ public class InventoryFrame extends javax.swing.JFrame {
 				selectedRows = searchTable(selectedRows, 3, quantityField.getText().trim(), false);
 			}
 		}
+		
 		inventoryTable.clearSelection();
-		inventoryTable.getSelectionModel().setSelectionInterval(selectedRows[searchCount],selectedRows[searchCount]);
-		searchCount++;
-		if (searchCount > selectedRows.length - 1) {
-			searchCount = 0;
+		if (selectedRows.length != 0) {
+			inventoryTable.getSelectionModel().setSelectionInterval(selectedRows[searchCount],selectedRows[searchCount]);
+			searchCount++;
+			if (searchCount > selectedRows.length - 1) {
+				searchCount = 0;
+			}
 		}
 	}
 	
@@ -240,9 +253,19 @@ public class InventoryFrame extends javax.swing.JFrame {
 		try {
 			if (nameField.getText(nameField.getDocument().getLength() - 1, 1).equals("*")) {
 				scan(nameField.getText());
-			}
+			} else if (makeField.getText(makeField.getDocument().getLength() - 1, 1).equals("*")) {
+				scan(makeField.getText());
+			} else if (modelField.getText(makeField.getDocument().getLength() - 1, 1).equals("*")) {
+				scan(modelField.getText());
+			} else if (quantityField.getText(quantityField.getDocument().getLength() - 1, 1).equals("*")) {
+				scan(quantityField.getText());
+			} else if (descriptionField.getText(descriptionField.getDocument().getLength() - 1, 1).equals("*")) {
+				scan(descriptionField.getText());
+			}/* else {
+				cleanFields();
+			}*/
 		} catch (Exception e) {
-			e.printStackTrace();
+			//e.printStackTrace();
 		}
 	}
 	
@@ -380,32 +403,42 @@ public class InventoryFrame extends javax.swing.JFrame {
 
 	private void addButtonActionPerformed(java.awt.event.ActionEvent evt) {
 		// TODO add your handling code here:
-		if (nameField.getText().trim().isEmpty() == false || makeField.getText().trim().isEmpty() == false 
-				|| modelField.getText().trim().isEmpty() == false || quantityField.getText().trim().isEmpty() == false 
-				|| descriptionField.getText().trim().isEmpty() == false) {
-			if (nameField.getText().trim().isEmpty() == true) {
-				nameField.setText("---");
+		resetSearch();
+		startSearch();
+		if (((exactSearch == true && quantityMismatch == false) || (exactSearch == false && quantityMismatch == true)) && model.getValueAt(selectedRows[0],0).toString().equals(nameField.getText()) && model.getValueAt(selectedRows[0], 1).toString().equals(makeField.getText()) && model.getValueAt(selectedRows[0], 2).toString().equals(modelField.getText())) {
+			//System.out.println(model.getValueAt(selectedRows[0], 3).toString());
+			model.setValueAt(Integer.parseInt(model.getValueAt(selectedRows[0],3).toString()) + Integer.parseInt(quantityField.getText()), selectedRows[0], 3);
+		} else {
+			if (nameField.getText().trim().isEmpty() == false || makeField.getText().trim().isEmpty() == false 
+					|| modelField.getText().trim().isEmpty() == false || quantityField.getText().trim().isEmpty() == false 
+					|| descriptionField.getText().trim().isEmpty() == false) {
+				/*if (nameField.getText().trim().isEmpty() == true) {
+					nameField.setText("---");
+				}
+				if (makeField.getText().trim().isEmpty() == true) {
+					makeField.setText("---");
+				}
+				if (modelField.getText().trim().isEmpty() == true) {
+					modelField.setText("---");
+				}
+				if (quantityField.getText().trim().isEmpty() == true) {
+					quantityField.setText("---");
+				}
+				if (descriptionField.getText().trim().isEmpty() == true) {
+					descriptionField.setText("---");
+				}*/
+				model.addRow(new Object[] { nameField.getText().trim(), makeField.getText().trim(), modelField.getText().trim(), quantityField.getText().trim(), descriptionField.getText().trim() });
 			}
-			if (makeField.getText().trim().isEmpty() == true) {
-				makeField.setText("---");
-			}
-			if (modelField.getText().trim().isEmpty() == true) {
-				modelField.setText("---");
-			}
-			if (quantityField.getText().trim().isEmpty() == true) {
-				quantityField.setText("---");
-			}
-			if (descriptionField.getText().trim().isEmpty() == true) {
-				descriptionField.setText("---");
-			}
-			model.addRow(new Object[] { nameField.getText().trim(), makeField.getText().trim(), modelField.getText().trim(),
-					quantityField.getText().trim(), descriptionField.getText().trim() });
-			cleanFields();
 		}
+		inventoryTable.clearSelection();
+		inventoryTable.getSelectionModel().removeSelectionInterval(0, inventoryTable.getRowCount() - 1);
+		cleanFields();
+		quantityMismatch = false;
 	}
 
 	private void deleteButtonActionPerformed(java.awt.event.ActionEvent evt) {
 		// TODO add your handling code here:
+		resetSearch();
 		if (inventoryTable.getSelectedRow() != -1) {
 			int confirm = JOptionPane.showConfirmDialog(null, "Are you sure you want to delete this?",
 					"Confirm deletion", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
@@ -420,6 +453,7 @@ public class InventoryFrame extends javax.swing.JFrame {
 	private void findButtonActionPerformed(java.awt.event.ActionEvent evt) {                                           
         // TODO add your handling code here:
 		startSearch();
+		System.out.println(selectedRows);
 	}
 	
 	public static WindowAdapter windowAdapter = new WindowAdapter() {
@@ -480,7 +514,6 @@ public class InventoryFrame extends javax.swing.JFrame {
 				InventoryFrame inventoryFrame = new InventoryFrame();
 				inventoryFrame.setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
 				inventoryFrame.addWindowListener(windowAdapter);
-				inventoryFrame.addKeyListener(keyListener);
 				inventoryFrame.setVisible(true);
 			}
 		});
@@ -505,5 +538,7 @@ public class InventoryFrame extends javax.swing.JFrame {
 	boolean firstScan = true;
 	int[] selectedRows = null;
 	int searchCount = 0;
+	boolean exactSearch = false;
+	boolean quantityMismatch = false;
 	// End of variables declaration
 }
